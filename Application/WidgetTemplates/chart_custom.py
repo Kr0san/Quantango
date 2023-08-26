@@ -101,3 +101,18 @@ class ChartWidget(QtWidgets.QWidget):
 
     def update_portfolio_plot(self, metric):
         self.plot_portfolio_data(start_date=self.start_date, metric=metric)
+
+    def plot_drawdown_data(self, start_date=None, plot_benchmark=True):
+        self.canvas.ax.clear()
+        self.start_date = start_date
+
+        if self.returns_series is not None:
+            filtered_performance_series = self.returns_series.loc[self.start_date:]
+            x_data = filtered_performance_series.index
+
+            if plot_benchmark:
+                y_data = filtered_performance_series['Benchmark']
+            else:
+                y_data = filtered_performance_series['Total Equity']
+
+            y_data_perf = y_data.pct_change().fillna(0.0)

@@ -87,36 +87,36 @@ class PortfolioWidget(QMainWindow):
         # Placeholder for the returns series, benchmark series, first transaction date and the chart
         self.returns_series = None
         self.first_transaction = None
-        self.performance_combo = None
-        self.ptf_chart = ChartWidget()
+        self.source_combo = None
+        self.equity_chart = ChartWidget()
+        self.performance_chart = ChartWidget()
         
         self.main_layout()
 
     def chart_layout(self):
-        performance_options_box = QGroupBox()
-        performance_options_layout = QHBoxLayout()
-        performance_label = QLabel("Plot Options:")
-        self.performance_combo = QComboBox()
-        self.performance_combo.addItems(["Portfolio Equity", "Performance"])
-        self.performance_combo.currentIndexChanged.connect(
-            lambda: self.ptf_chart.update_portfolio_plot(self.performance_combo.currentText()))
-        self.performance_combo.setStatusTip("Select portfolio performance metric. Total equity or cumulative "
-                                            "performance.")
+        source_options_box = QGroupBox()
+        source_options_layout = QHBoxLayout()
+        source_label = QLabel("Source:")
+        self.source_combo = QComboBox()
+        self.source_combo.addItems(["Portfolio", "Benchmark", "Portfolio vs Benchmark"])
+        self.source_combo.currentIndexChanged.connect(
+            lambda: self.update_plots(self.source_combo.currentText()))
+        self.source_combo.setStatusTip("Select data source to plot. Portfolio, benchmark or both.")
 
-        performance_options_layout.addWidget(performance_label)
-        performance_options_layout.addWidget(self.performance_combo)
-        performance_options_box.setLayout(performance_options_layout)
+        source_options_layout.addWidget(source_label)
+        source_options_layout.addWidget(self.source_combo)
+        source_options_box.setLayout(source_options_layout)
 
         timeline_box = QGroupBox("Timeline:")
         timeline_box_layout = QHBoxLayout()
         itd_button = QPushButton("ITD")
-        itd_button.setStatusTip("Plot performance inception to date.")
+        itd_button.setStatusTip("Plot data inception to date.")
         itd_button.clicked.connect(self.plot_inception_to_date)
         ytd_button = QPushButton("YTD")
-        ytd_button.setStatusTip("Plot performance year to date.")
+        ytd_button.setStatusTip("Plot data year to date.")
         ytd_button.clicked.connect(self.plot_year_to_date)
         mtd_button = QPushButton("MTD")
-        mtd_button.setStatusTip("Plot performance month to date.")
+        mtd_button.setStatusTip("Plot data month to date.")
         mtd_button.clicked.connect(self.plot_month_to_date)
         timeline_box_layout.addWidget(itd_button)
         timeline_box_layout.addWidget(ytd_button)
@@ -124,20 +124,21 @@ class PortfolioWidget(QMainWindow):
         timeline_box.setLayout(timeline_box_layout)
 
         plot_options_layout = QHBoxLayout()
-        plot_options_layout.addWidget(performance_options_box)
+        plot_options_layout.addWidget(source_options_box)
         plot_options_layout.addWidget(timeline_box)
-        plot_options_layout.setContentsMargins(100, 0, 100, 0)
+        # plot_options_layout.setContentsMargins(100, 0, 100, 0)
 
         plots_tab = QTabWidget()
-        plots_tab.addTab(self.ptf_chart, "Portfolio Performance")
+        plots_tab.addTab(self.equity_chart, "EQUITY")
+        plots_tab.addTab(self.performance_chart, "PERFORMANCE")
 
-        portfolio_performance_group = QGroupBox("Portfolio Visualization")
-        portfolio_performance_group_layout = QVBoxLayout()
-        portfolio_performance_group_layout.addLayout(plot_options_layout)
-        portfolio_performance_group_layout.addWidget(plots_tab)
-        portfolio_performance_group.setLayout(portfolio_performance_group_layout)
+        portfolio_visualization_group = QGroupBox("Portfolio Visualization")
+        portfolio_visualization_group_layout = QVBoxLayout()
+        portfolio_visualization_group_layout.addLayout(plot_options_layout)
+        portfolio_visualization_group_layout.addWidget(plots_tab)
+        portfolio_visualization_group.setLayout(portfolio_visualization_group_layout)
 
-        return portfolio_performance_group
+        return portfolio_visualization_group
 
     def portfolio_properties_table(self):
         """
@@ -312,11 +313,16 @@ class PortfolioWidget(QMainWindow):
 
                 # Update portfolio series, benchmark series, first transaction and plot
 
-                self.ptf_chart.returns_series = self.returns_series
-                self.ptf_chart.portfolio_label = self.ptf_name
-                self.ptf_chart.benchmark_label = benchmark
-                self.ptf_chart.plot_portfolio_data(start_date=self.first_transaction,
-                                                   metric=self.performance_combo.currentText())
+                ChartWidget.returns_series = self.returns_series
+                ChartWidget.portfolio_label = self.ptf_name
+                ChartWidget.benchmark_label = benchmark
+                self.equity_chart.plot_metric(start_date=self.first_transaction,
+                                              source=self.source_combo.currentText(),
+                                              metric="Equity")
+                self.performance_chart.plot_metric(start_date=self.first_transaction,
+                                                   source=self.source_combo.currentText(),
+                                                   metric="Performance")
+
             except Exception as exception:
                 QMessageBox.information(self, f"Error!", f"Error computing portfolio: {exception}")
 
@@ -361,9 +367,6 @@ class PortfolioWidget(QMainWindow):
             self.trans_model.dataframe = df
         else:
             QMessageBox.information(self, "Error!", "Imported file headers do not match transaction table headers!")
-        # df1 = df.copy()
-        # df1["Date"] = pd.to_datetime(df1["Date"], format='%Y-%m-%d')
-        # print(df1.dtypes)
 
     def export_trade_file_dataframe(self, file_name):
         """
@@ -379,34 +382,50 @@ class PortfolioWidget(QMainWindow):
 
     def plot_inception_to_date(self):
         """
-        Re-plots portfolio performance data from the first transaction date - 1 to as of date.
+        Re-plots portfolio data from the first transaction date - 1 to as of date.
         """
-        self.ptf_chart.plot_portfolio_data(start_date=self.first_transaction,
-                                           metric=self.performance_combo.currentText())
+        self.equity_chart.plot_metric(start_date=self.first_transaction,
+                                      source=self.source_combo.currentText(),
+                                      metric="Equity")
+        self.performance_chart.plot_metric(start_date=self.first_transaction,
+                                           source=self.source_combo.currentText(),
+                                           metric="Performance")
 
     def plot_month_to_date(self):
         """
-        Re-plots portfolio performance data from the start of the latest month to as of date.
+        Re-plots portfolio data from the start of the latest month to as of date.
         """
         if self.returns_series is not None:
             max_as_of_date = self.returns_series.index.max()
             start_date = pd.to_datetime(date(max_as_of_date.year, max_as_of_date.month, 1), dayfirst=True)
-            self.ptf_chart.plot_portfolio_data(start_date=start_date - BDay(1),
-                                               metric=self.performance_combo.currentText())
+            self.equity_chart.plot_metric(start_date=start_date - BDay(1),
+                                          source=self.source_combo.currentText(),
+                                          metric="Equity")
+            self.performance_chart.plot_metric(start_date=start_date - BDay(1),
+                                               source=self.source_combo.currentText(),
+                                               metric="Performance")
 
     def plot_year_to_date(self):
         """
-        Re-plots portfolio performance data from the start of the latest year to as of date. If the start of the
-        latest year is before the first transaction then data is simply re-ploted as inception to as of date.
+        Re-plots portfolio data from the start of the latest year to as of date. If the start of the
+        latest year is before the first transaction then the data is simply re-ploted as inception to as of date.
         """
         if self.returns_series is not None:
             max_as_of_date = self.returns_series.index.max()
             start_date = pd.to_datetime(date(max_as_of_date.year, 1, 1), dayfirst=True)
             if start_date >= self.first_transaction:
-                self.ptf_chart.plot_portfolio_data(start_date=start_date - BDay(1),
-                                                   metric=self.performance_combo.currentText())
+                self.equity_chart.plot_metric(start_date=start_date - BDay(1),
+                                              source=self.source_combo.currentText(),
+                                              metric="Equity")
+                self.performance_chart.plot_metric(start_date=start_date - BDay(1),
+                                                   source=self.source_combo.currentText(),
+                                                   metric="Performance")
             else:
                 self.plot_inception_to_date()
+
+    def update_plots(self, source):
+        self.equity_chart.plot_metric(start_date=self.first_transaction, source=source, metric="Equity")
+        self.performance_chart.plot_metric(start_date=self.first_transaction, source=source, metric="Performance")
 
     def statistics_layout(self):
         horizontal_layout = QHBoxLayout()

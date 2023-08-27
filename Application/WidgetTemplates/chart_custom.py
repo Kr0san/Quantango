@@ -45,14 +45,15 @@ class MplCanvas(FigureCanvasQTAgg):
 
 
 class ChartWidget(QtWidgets.QWidget):
+
+    # Class variables for plotting data on the chart widget canvas object (MplCanvas).
+    start_date = None
+    returns_series = None
+    portfolio_label = None
+    benchmark_label = None
+
     def __init__(self, parent=None):
         super().__init__()
-
-        # Placeholder for plot start date and portfolio series
-        self.start_date = None
-        self.returns_series = None
-        self.portfolio_label = None
-        self.benchmark_label = None
 
         self.canvas = MplCanvas()
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -62,6 +63,81 @@ class ChartWidget(QtWidgets.QWidget):
         layout.addWidget(self.canvas)
         layout.addWidget(self.toolbar)
         self.setLayout(layout)
+
+    def plot_metric(self, start_date=None, source="Portfolio", metric="Equity"):
+        self.canvas.ax.clear()
+        self.start_date = start_date
+
+        if self.returns_series is not None:
+            filtered_data = self.returns_series.loc[self.start_date:]
+            x_data = filtered_data.index
+
+            if metric == "Equity":
+                if source == "Portfolio":
+                    y_data = filtered_data['Total Equity']
+                    self.canvas.ax.plot(x_data, y_data, label=self.portfolio_label)
+                    self.canvas.ax.set_ylabel("Portfolio Equity")
+                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                               f"Portfolio Equity = {y:,.2f}"
+                elif source == "Benchmark":
+                    y_data = filtered_data['Benchmark']
+                    self.canvas.ax.plot(x_data, y_data, label=self.benchmark_label)
+                    self.canvas.ax.set_ylabel("Benchmark Equity")
+                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                               f"Benchmark Equity = {y:,.2f}"
+                else:
+                    self.canvas.ax.plot(x_data, filtered_data['Total Equity'], label=self.portfolio_label)
+                    self.canvas.ax.plot(x_data, filtered_data['Benchmark'], label=self.benchmark_label)
+                    self.canvas.ax.set_ylabel("Ptf vs Bmk Equity")
+                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                               f"Equity = {y:,.2f}"
+    
+                self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+                self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+                self.canvas.figure.autofmt_xdate()
+                for label in self.canvas.ax.get_xticklabels(which='major'):
+                    label.set(rotation=30, horizontalalignment='right', fontsize=7)
+                self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
+                                          bbox_transform=self.canvas.ax.transAxes, ncol=2)
+                
+            elif metric == "Performance":
+                if source == "Portfolio":
+                    y_data = filtered_data['Total Equity']
+                    y_data_perf = y_data.pct_change().fillna(0.0)
+                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.portfolio_label)
+                    self.canvas.ax.set_ylabel("Portfolio Performance")
+                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
+                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                               f"Portfolio Performance = {y:,.2f} %"
+                elif source == "Benchmark":
+                    y_data = filtered_data['Benchmark']
+                    y_data_perf = y_data.pct_change().fillna(0.0)
+                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.benchmark_label)
+                    self.canvas.ax.set_ylabel("Benchmark Performance")
+                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
+                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                               f"Benchmark Performance = {y:,.2f} %"
+                else:
+                    y_data = filtered_data['Total Equity']
+                    y_data_perf = y_data.pct_change().fillna(0.0)
+                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.portfolio_label)
+                    y_data = filtered_data['Benchmark']
+                    y_data_perf = y_data.pct_change().fillna(0.0)
+                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.benchmark_label)
+                    self.canvas.ax.set_ylabel("Ptf vs Bmk Performance")
+                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
+                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                               f"Performance = {y:,.2f} %"
+
+                self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+                self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+                self.canvas.figure.autofmt_xdate()
+                for label in self.canvas.ax.get_xticklabels(which='major'):
+                    label.set(rotation=30, horizontalalignment='right', fontsize=7)
+                self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
+                                      bbox_transform=self.canvas.ax.transAxes, ncol=2)
+
+        self.canvas.draw()
 
     def plot_portfolio_data(self, start_date=None, metric="Total Equity"):
         self.canvas.ax.clear()
@@ -98,9 +174,6 @@ class ChartWidget(QtWidgets.QWidget):
                                       bbox_transform=self.canvas.ax.transAxes, ncol=2)
 
         self.canvas.draw()
-
-    def update_portfolio_plot(self, metric):
-        self.plot_portfolio_data(start_date=self.start_date, metric=metric)
 
     def plot_drawdown_data(self, start_date=None, plot_benchmark=True):
         self.canvas.ax.clear()

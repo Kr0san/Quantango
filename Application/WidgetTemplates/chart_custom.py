@@ -6,6 +6,7 @@ import matplotlib
 from matplotlib.ticker import PercentFormatter
 import matplotlib.pyplot as plt
 import quantstats as qs
+import seaborn as sns
 
 from qbstyles import mpl_style
 mpl_style(dark=True)
@@ -172,6 +173,40 @@ class ChartWidget(QtWidgets.QWidget):
                                   bbox_transform=self.canvas.ax.transAxes, ncol=2)
 
         self.canvas.draw()
+
+    def plot_returns_distribution(self, start_date=None, source="Portfolio"):
+        self.canvas.ax.clear()
+        self.start_date = start_date
+
+        if self.returns_series is not None:
+            filtered_data = self.returns_series.loc[self.start_date:]
+            x_data = filtered_data.index
+
+            if source == "Portfolio":
+                y_data = filtered_data['Total Equity']
+                y_data_perf = y_data.pct_change().fillna(0.0)
+                sns.histplot(y_data_perf, ax=self.canvas.ax, kde=True, label=self.portfolio_label)
+                self.canvas.ax.set_ylabel("Portfolio Returns Distribution")
+
+            elif source == "Benchmark":
+                y_data = filtered_data['Benchmark']
+                y_data_perf = y_data.pct_change().fillna(0.0)
+                sns.histplot(y_data_perf, ax=self.canvas.ax, kde=True, label=self.benchmark_label)
+                self.canvas.ax.set_ylabel("Benchmark Returns Distribution")
+
+            else:
+                y_data = filtered_data['Total Equity']
+                y_data_perf = y_data.pct_change().fillna(0.0)
+                sns.kdeplot(y_data_perf, ax=self.canvas.ax, label=self.portfolio_label)
+                y_data = filtered_data['Benchmark']
+                y_data_perf = y_data.pct_change().fillna(0.0)
+                sns.kdeplot(y_data_perf, ax=self.canvas.ax, label=self.benchmark_label)
+                self.canvas.ax.set_ylabel("Ptf vs Bmk Returns Distribution")
+
+        self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
+                              bbox_transform=self.canvas.ax.transAxes, ncol=2)
+        self.canvas.draw()
+
 
     def plot_portfolio_data(self, start_date=None, metric="Total Equity"):
         self.canvas.ax.clear()

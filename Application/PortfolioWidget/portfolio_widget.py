@@ -92,6 +92,7 @@ class PortfolioWidget(QMainWindow):
         self.performance_chart = ChartWidget()
         self.drawdown_chart = ChartWidget()
         self.returns_distribution_chart = ChartWidget()
+        self.monthly_returns_chart = ChartWidget()
         
         self.main_layout()
 
@@ -135,6 +136,7 @@ class PortfolioWidget(QMainWindow):
         plots_tab.addTab(self.performance_chart, "PERFORMANCE")
         plots_tab.addTab(self.drawdown_chart, "DRAWDOWN")
         plots_tab.addTab(self.returns_distribution_chart, "RETURNS DISTRIBUTION")
+        plots_tab.addTab(self.monthly_returns_chart, "MONTHLY RETURNS")
 
         portfolio_visualization_group = QGroupBox("Portfolio Visualization")
         portfolio_visualization_group_layout = QVBoxLayout()
@@ -412,6 +414,7 @@ class PortfolioWidget(QMainWindow):
         self.performance_chart.plot_metric(start_date=start_date, source=source, metric="Performance")
         self.drawdown_chart.plot_metric(start_date=start_date, source=source, metric="Drawdown")
         self.returns_distribution_chart.plot_returns_distribution(start_date=start_date, source=source)
+        self.monthly_returns_chart.plot_monthly_returns(source=source)
 
     def statistics_layout(self):
         horizontal_layout = QHBoxLayout()

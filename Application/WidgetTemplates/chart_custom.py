@@ -7,6 +7,7 @@ from matplotlib.ticker import PercentFormatter
 import matplotlib.pyplot as plt
 import quantstats as qs
 import seaborn as sns
+from functools import lru_cache
 
 from qbstyles import mpl_style
 mpl_style(dark=True)
@@ -185,7 +186,7 @@ class ChartWidget(QtWidgets.QWidget):
             if source == "Portfolio":
                 y_data = filtered_data['Total Equity']
                 y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.histplot(y_data_perf, ax=self.canvas.ax, kde=True, label=self.portfolio_label)
+                sns.histplot(y_data_perf, kde=True, label=self.portfolio_label, ax=self.canvas.ax)
                 self.canvas.ax.set_ylabel("Portfolio Returns Distribution")
 
             elif source == "Benchmark":
@@ -197,49 +198,38 @@ class ChartWidget(QtWidgets.QWidget):
             else:
                 y_data = filtered_data['Total Equity']
                 y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.kdeplot(y_data_perf, ax=self.canvas.ax, label=self.portfolio_label)
+                sns.kdeplot(y_data_perf, fill=True, ax=self.canvas.ax, label=self.portfolio_label)
                 y_data = filtered_data['Benchmark']
                 y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.kdeplot(y_data_perf, ax=self.canvas.ax, label=self.benchmark_label)
+                sns.kdeplot(y_data_perf, fill=True,  ax=self.canvas.ax, label=self.benchmark_label)
                 self.canvas.ax.set_ylabel("Ptf vs Bmk Returns Distribution")
 
         self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
                               bbox_transform=self.canvas.ax.transAxes, ncol=2)
         self.canvas.draw()
 
-
-    def plot_portfolio_data(self, start_date=None, metric="Total Equity"):
+    def plot_monthly_returns(self, source="Portfolio"):
         self.canvas.ax.clear()
-        self.start_date = start_date
 
         if self.returns_series is not None:
-            filtered_performance_series = self.returns_series.loc[self.start_date:]
-            x_data = filtered_performance_series.index
-            y_data_eq = filtered_performance_series['Total Equity']
-            y_data_bmk = filtered_performance_series['Benchmark']
+            if source == "Portfolio":
+                monthly_returns = qs.stats.monthly_returns(self.returns_series['Ptf Returns']) * 100
+                sns.heatmap(monthly_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
+                            cbar=False, annot_kws={"size": 8}, center=0)  # cbar_kws={"format": "%.0f%%"},
 
-            y_data_perf = y_data_eq.pct_change().fillna(0.0)
-            y_data_perf_bmk = y_data_bmk.pct_change().fillna(0.0)
+            elif source == "Benchmark":
+                monthly_returns = qs.stats.monthly_returns(self.returns_series['Bmk Returns']) * 100
+                sns.heatmap(monthly_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
+                            cbar=False, annot_kws={"size": 8}, center=0)
 
-            if metric == 'Performance':
-                self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.portfolio_label)
-                self.canvas.ax.plot(x_data, (y_data_perf_bmk.add(1).cumprod() - 1) * 100, label=self.benchmark_label)
-                self.canvas.ax.set_ylabel("Performance")
-                self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
-                self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                           f"Performance = {y:,.2f} %"
             else:
-                self.canvas.ax.plot(x_data, y_data_eq, label=self.portfolio_label)
-                self.canvas.ax.set_ylabel("Portfolio Equity")
-                self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                           f"Portfolio Equity = {y:,.2f}"
+                active_returns = qs.stats.monthly_returns(self.returns_series['Ptf Returns']) - \
+                                 qs.stats.monthly_returns(self.returns_series['Bmk Returns']) * 100
+                sns.heatmap(active_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
+                            cbar=False, annot_kws={"size": 8}, center=0)
 
-            self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-            self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-            self.canvas.figure.autofmt_xdate()
-            for label in self.canvas.ax.get_xticklabels(which='major'):
-                label.set(rotation=30, horizontalalignment='right', fontsize=7)
-            self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
-                                      bbox_transform=self.canvas.ax.transAxes, ncol=2)
-
+        self.canvas.ax.set_title(f'Monthly {source} Returns (%)', fontweight='bold')
+        self.canvas.ax.set_ylabel('')
+        self.canvas.ax.set_yticklabels(self.canvas.ax.get_yticklabels(), rotation=0)
+        self.canvas.ax.set_xlabel('')
         self.canvas.draw()

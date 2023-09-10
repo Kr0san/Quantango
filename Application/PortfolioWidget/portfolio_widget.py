@@ -136,7 +136,7 @@ class PortfolioWidget(QMainWindow):
         plots_tab.addTab(self.performance_chart, "PERFORMANCE")
         plots_tab.addTab(self.drawdown_chart, "DRAWDOWN")
         plots_tab.addTab(self.returns_distribution_chart, "RETURNS DISTRIBUTION")
-        plots_tab.addTab(self.monthly_returns_chart, "MONTHLY RETURNS")
+        plots_tab.addTab(self.monthly_returns_chart, "RETURNS HEATMAP")
 
         portfolio_visualization_group = QGroupBox("Portfolio Visualization")
         portfolio_visualization_group_layout = QVBoxLayout()

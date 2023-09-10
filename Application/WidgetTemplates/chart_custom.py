@@ -1,13 +1,13 @@
 from PyQt6 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
+from matplotlib import cm
 import matplotlib.dates as mdates
 import matplotlib
 from matplotlib.ticker import PercentFormatter
 import matplotlib.pyplot as plt
 import quantstats as qs
 import seaborn as sns
-from functools import lru_cache
 
 from qbstyles import mpl_style
 mpl_style(dark=True)
@@ -186,14 +186,12 @@ class ChartWidget(QtWidgets.QWidget):
             if source == "Portfolio":
                 y_data = filtered_data['Total Equity']
                 y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.histplot(y_data_perf, kde=True, label=self.portfolio_label, ax=self.canvas.ax)
-                self.canvas.ax.set_ylabel("Portfolio Returns Distribution")
+                sns.histplot(y_data_perf, kde=True, ax=self.canvas.ax, label=self.portfolio_label)
 
             elif source == "Benchmark":
                 y_data = filtered_data['Benchmark']
                 y_data_perf = y_data.pct_change().fillna(0.0)
                 sns.histplot(y_data_perf, ax=self.canvas.ax, kde=True, label=self.benchmark_label)
-                self.canvas.ax.set_ylabel("Benchmark Returns Distribution")
 
             else:
                 y_data = filtered_data['Total Equity']
@@ -202,8 +200,9 @@ class ChartWidget(QtWidgets.QWidget):
                 y_data = filtered_data['Benchmark']
                 y_data_perf = y_data.pct_change().fillna(0.0)
                 sns.kdeplot(y_data_perf, fill=True,  ax=self.canvas.ax, label=self.benchmark_label)
-                self.canvas.ax.set_ylabel("Ptf vs Bmk Returns Distribution")
 
+        self.canvas.ax.set_ylabel(f"{source} Ret. Density")
+        self.canvas.ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}%".format(int(x * 100))))
         self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
                               bbox_transform=self.canvas.ax.transAxes, ncol=2)
         self.canvas.draw()
@@ -215,18 +214,18 @@ class ChartWidget(QtWidgets.QWidget):
             if source == "Portfolio":
                 monthly_returns = qs.stats.monthly_returns(self.returns_series['Ptf Returns']) * 100
                 sns.heatmap(monthly_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
-                            cbar=False, annot_kws={"size": 8}, center=0)  # cbar_kws={"format": "%.0f%%"},
+                            cbar=False, annot_kws={"size": 8}, center=0, cmap=cm.get_cmap("RdYlGn"))
 
             elif source == "Benchmark":
                 monthly_returns = qs.stats.monthly_returns(self.returns_series['Bmk Returns']) * 100
                 sns.heatmap(monthly_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
-                            cbar=False, annot_kws={"size": 8}, center=0)
+                            cbar=False, annot_kws={"size": 8}, center=0, cmap=cm.get_cmap("RdYlGn"))
 
             else:
                 active_returns = qs.stats.monthly_returns(self.returns_series['Ptf Returns']) - \
                                  qs.stats.monthly_returns(self.returns_series['Bmk Returns']) * 100
                 sns.heatmap(active_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
-                            cbar=False, annot_kws={"size": 8}, center=0)
+                            cbar=False, annot_kws={"size": 8}, center=0, cmap=cm.get_cmap("RdYlGn"))
 
         self.canvas.ax.set_title(f'Monthly {source} Returns (%)', fontweight='bold')
         self.canvas.ax.set_ylabel('')

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from PyQt6.QtWidgets import QMainWindow, QScrollArea, QWidget, QTableView, QHBoxLayout, QVBoxLayout, QGroupBox, \
-    QHeaderView, QMessageBox, QLabel, QComboBox, QPushButton, QTabWidget
+    QHeaderView, QMessageBox, QLabel, QComboBox, QPushButton, QTabWidget, QSpinBox
 from PyQt6.QtCore import QItemSelectionModel
 from Infrastructure.portfolio_constructor import PortfolioConstructor, yf
 from Infrastructure.Utilities.business_day_check import BDay
@@ -88,11 +88,14 @@ class PortfolioWidget(QMainWindow):
         self.returns_series = None
         self.first_transaction = None
         self.source_combo = None
+        self.rolling_spinbox = None
         self.equity_chart = ChartWidget()
         self.performance_chart = ChartWidget()
         self.drawdown_chart = ChartWidget()
         self.returns_distribution_chart = ChartWidget()
         self.monthly_returns_chart = ChartWidget()
+        self.rolling_volatility_chart = ChartWidget()
+        self.rolling_beta_chart = ChartWidget()
         
         self.main_layout()
 
@@ -103,7 +106,8 @@ class PortfolioWidget(QMainWindow):
         self.source_combo = QComboBox()
         self.source_combo.addItems(["Portfolio", "Benchmark", "Portfolio vs Benchmark"])
         self.source_combo.currentIndexChanged.connect(
-            lambda: self.update_plots(start_date=self.first_transaction, source=self.source_combo.currentText()))
+            lambda: self.update_plots(start_date=self.first_transaction, source=self.source_combo.currentText(),
+                                      rolling_period=self.rolling_spinbox.value()))
         self.source_combo.setStatusTip("Select data source to plot. Portfolio, benchmark or both.")
 
         source_options_layout.addWidget(source_label)
@@ -126,23 +130,40 @@ class PortfolioWidget(QMainWindow):
         timeline_box_layout.addWidget(mtd_button)
         timeline_box.setLayout(timeline_box_layout)
 
+        rolling_periods_box = QGroupBox("Rolling Periods:")
+        rolling_periods_box_layout = QHBoxLayout()
+        self.rolling_spinbox = QSpinBox()
+        self.rolling_spinbox.setMinimum(1)
+        self.rolling_spinbox.setValue(21)
+        rolling_periods_box_layout.addWidget(self.rolling_spinbox)
+        rolling_periods_box.setLayout(rolling_periods_box_layout)
+
         plot_options_layout = QHBoxLayout()
         plot_options_layout.addWidget(source_options_box)
         plot_options_layout.addWidget(timeline_box)
+        plot_options_layout.addWidget(rolling_periods_box)
         # plot_options_layout.setContentsMargins(100, 0, 100, 0)
 
         plots_tab = QTabWidget()
         plots_tab.addTab(self.equity_chart, "EQUITY")
         plots_tab.addTab(self.performance_chart, "PERFORMANCE")
         plots_tab.addTab(self.drawdown_chart, "DRAWDOWN")
-        plots_tab.addTab(self.returns_distribution_chart, "RETURNS DISTRIBUTION")
+        plots_tab.addTab(self.returns_distribution_chart, "RETURNS DIST")
         plots_tab.addTab(self.monthly_returns_chart, "RETURNS HEATMAP")
+        plots_tab.addTab(self.rolling_volatility_chart, "ROLLING VOLATILITY")
+        plots_tab.addTab(self.rolling_beta_chart, "ROLLING BETA")
 
         portfolio_visualization_group = QGroupBox("Portfolio Visualization")
         portfolio_visualization_group_layout = QVBoxLayout()
         portfolio_visualization_group_layout.addLayout(plot_options_layout)
         portfolio_visualization_group_layout.addWidget(plots_tab)
         portfolio_visualization_group.setLayout(portfolio_visualization_group_layout)
+
+        # Align plot tabs to center
+        portfolio_visualization_group.setStyleSheet('''
+                        QTabWidget::tab-bar {
+                            alignment: center;
+                        }''')
 
         return portfolio_visualization_group
 
@@ -322,7 +343,8 @@ class PortfolioWidget(QMainWindow):
                 ChartWidget.returns_series = self.returns_series
                 ChartWidget.portfolio_label = self.ptf_name
                 ChartWidget.benchmark_label = benchmark
-                self.update_plots(start_date=self.first_transaction, source=self.source_combo.currentText())
+                self.update_plots(start_date=self.first_transaction, source=self.source_combo.currentText(),
+                                  rolling_period=self.rolling_spinbox.value())
 
             except Exception as exception:
                 QMessageBox.information(self, f"Error!", f"Error computing portfolio: {exception}")
@@ -385,7 +407,8 @@ class PortfolioWidget(QMainWindow):
         """
         Re-plots portfolio data from the first transaction date - 1 to as of date.
         """
-        self.update_plots(start_date=self.first_transaction, source=self.source_combo.currentText())
+        self.update_plots(start_date=self.first_transaction, source=self.source_combo.currentText(),
+                          rolling_period=self.rolling_spinbox.value())
 
     def plot_month_to_date(self):
         """
@@ -394,7 +417,8 @@ class PortfolioWidget(QMainWindow):
         if self.returns_series is not None:
             max_as_of_date = self.returns_series.index.max()
             start_date = pd.to_datetime(date(max_as_of_date.year, max_as_of_date.month, 1), dayfirst=True)
-            self.update_plots(start_date=start_date - BDay(1), source=self.source_combo.currentText())
+            self.update_plots(start_date=start_date - BDay(1), source=self.source_combo.currentText(),
+                              rolling_period=self.rolling_spinbox.value())
 
     def plot_year_to_date(self):
         """
@@ -405,16 +429,19 @@ class PortfolioWidget(QMainWindow):
             max_as_of_date = self.returns_series.index.max()
             start_date = pd.to_datetime(date(max_as_of_date.year, 1, 1), dayfirst=True)
             if start_date >= self.first_transaction:
-                self.update_plots(start_date=start_date - BDay(1), source=self.source_combo.currentText())
+                self.update_plots(start_date=start_date - BDay(1), source=self.source_combo.currentText(),
+                                  rolling_period=self.rolling_spinbox.value())
             else:
                 self.plot_inception_to_date()
 
-    def update_plots(self, start_date, source):
+    def update_plots(self, start_date, source, rolling_period):
         self.equity_chart.plot_metric(start_date=start_date, source=source, metric="Equity")
         self.performance_chart.plot_metric(start_date=start_date, source=source, metric="Performance")
         self.drawdown_chart.plot_metric(start_date=start_date, source=source, metric="Drawdown")
         self.returns_distribution_chart.plot_returns_distribution(start_date=start_date, source=source)
         self.monthly_returns_chart.plot_monthly_returns(source=source)
+        self.rolling_volatility_chart.plot_rolling_volatility(source=source, rolling_period=rolling_period)
+        self.rolling_beta_chart.plot_rolling_beta(rolling_period=rolling_period)
 
     def statistics_layout(self):
         horizontal_layout = QHBoxLayout()

@@ -165,6 +165,7 @@ class ChartWidget(QtWidgets.QWidget):
                     self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
                                                                f"Drawdown = {y:,.2f} %"
 
+            self.canvas.ax.yaxis.get_label().set_fontsize(8)
             self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
             self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
             self.canvas.figure.autofmt_xdate()
@@ -173,7 +174,7 @@ class ChartWidget(QtWidgets.QWidget):
             self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
                                   bbox_transform=self.canvas.ax.transAxes, ncol=2)
 
-        self.canvas.draw()
+            self.canvas.draw()
 
     def plot_returns_distribution(self, start_date=None, source="Portfolio"):
         self.canvas.ax.clear()
@@ -201,11 +202,12 @@ class ChartWidget(QtWidgets.QWidget):
                 y_data_perf = y_data.pct_change().fillna(0.0)
                 sns.kdeplot(y_data_perf, fill=True,  ax=self.canvas.ax, label=self.benchmark_label)
 
-        self.canvas.ax.set_ylabel(f"{source} Ret. Density")
-        self.canvas.ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}%".format(int(x * 100))))
-        self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
-                              bbox_transform=self.canvas.ax.transAxes, ncol=2)
-        self.canvas.draw()
+            self.canvas.ax.set_ylabel(f"{source} Ret. Density")
+            self.canvas.ax.yaxis.get_label().set_fontsize(8)
+            self.canvas.ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}%".format(int(x * 100))))
+            self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
+                                  bbox_transform=self.canvas.ax.transAxes, ncol=2)
+            self.canvas.draw()
 
     def plot_monthly_returns(self, source="Portfolio"):
         self.canvas.ax.clear()
@@ -227,8 +229,56 @@ class ChartWidget(QtWidgets.QWidget):
                 sns.heatmap(active_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
                             cbar=False, annot_kws={"size": 8}, center=0, cmap=cm.get_cmap("RdYlGn"))
 
-        self.canvas.ax.set_title(f'Monthly {source} Returns (%)', fontweight='bold')
-        self.canvas.ax.set_ylabel('')
-        self.canvas.ax.set_yticklabels(self.canvas.ax.get_yticklabels(), rotation=0)
-        self.canvas.ax.set_xlabel('')
-        self.canvas.draw()
+            self.canvas.ax.set_title(f'Monthly {source} Returns (%)', fontweight='bold')
+            self.canvas.ax.set_ylabel('')
+            self.canvas.ax.set_yticklabels(self.canvas.ax.get_yticklabels(), rotation=0)
+            self.canvas.ax.set_xlabel('')
+            self.canvas.draw()
+
+    def plot_rolling_volatility(self, source="Portfolio", rolling_period=63):
+        self.canvas.ax.clear()
+
+        if self.returns_series is not None:
+            if source == "Portfolio":
+                rolling_volatility = (qs.stats.rolling_volatility(self.returns_series['Ptf Returns'],
+                                                                  rolling_period=rolling_period) * 100)
+                sns.lineplot(data=rolling_volatility, ax=self.canvas.ax, label=self.portfolio_label)
+
+            elif source == "Benchmark":
+                rolling_volatility = (qs.stats.rolling_volatility(self.returns_series['Bmk Returns'],
+                                                                  rolling_period=rolling_period) * 100)
+                sns.lineplot(data=rolling_volatility, ax=self.canvas.ax, label=self.benchmark_label)
+
+            else:
+                rolling_volatility = (qs.stats.rolling_volatility(self.returns_series['Ptf Returns'],
+                                                                  rolling_period=rolling_period) * 100)
+                sns.lineplot(data=rolling_volatility, ax=self.canvas.ax, label=self.portfolio_label)
+                rolling_volatility = (qs.stats.rolling_volatility(self.returns_series['Bmk Returns'],
+                                                                  rolling_period=rolling_period) * 100)
+                sns.lineplot(data=rolling_volatility, ax=self.canvas.ax, label=self.benchmark_label)
+
+            self.canvas.ax.set_ylabel(f'{source} Rolling {rolling_period}-Day Volatility (%)')
+            self.canvas.ax.yaxis.get_label().set_fontsize(8)
+            self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+            self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+            self.canvas.figure.autofmt_xdate()
+            self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
+                                  bbox_transform=self.canvas.ax.transAxes, ncol=2)
+            self.canvas.draw()
+
+    def plot_rolling_beta(self, rolling_period=63):
+        self.canvas.ax.clear()
+
+        if self.returns_series is not None:
+            rolling_greeks = qs.stats.rolling_greeks(self.returns_series['Ptf Returns'],
+                                                     self.returns_series['Bmk Returns'], periods=rolling_period)
+            sns.lineplot(data=rolling_greeks['beta'], ax=self.canvas.ax, label='Beta')
+
+            self.canvas.ax.set_ylabel(f'Rolling {rolling_period}-Day Beta')
+            self.canvas.ax.yaxis.get_label().set_fontsize(8)
+            self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+            self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+            self.canvas.figure.autofmt_xdate()
+            self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
+                                  bbox_transform=self.canvas.ax.transAxes, ncol=2)
+            self.canvas.draw()

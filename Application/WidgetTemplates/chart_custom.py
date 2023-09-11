@@ -36,7 +36,7 @@ class NavigationToolbar(QtWidgets.QWidget):
 
 
 class MplCanvas(FigureCanvasQTAgg):
-    def __init__(self, parent=None, width=6, height=4, dpi=100):
+    def __init__(self, width=6, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.ax = fig.add_subplot(111)
         self.ax.xaxis.grid(linestyle=':')
@@ -55,7 +55,7 @@ class ChartWidget(QtWidgets.QWidget):
     portfolio_label = None
     benchmark_label = None
 
-    def __init__(self, parent=None):
+    def __init__(self):
         super().__init__()
 
         self.canvas = MplCanvas()
@@ -77,24 +77,15 @@ class ChartWidget(QtWidgets.QWidget):
 
             if metric == "Equity":
                 if source == "Portfolio":
-                    y_data = filtered_data['Total Equity']
-                    self.canvas.ax.plot(x_data, y_data, label=self.portfolio_label)
-                    self.canvas.ax.set_ylabel("Portfolio Equity")
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Portfolio Equity = {y:,.2f}"
+                    sns.lineplot(data=filtered_data['Total Equity'], ax=self.canvas.ax, label=self.portfolio_label)
                 elif source == "Benchmark":
-                    y_data = filtered_data['Benchmark']
-                    self.canvas.ax.plot(x_data, y_data, label=self.benchmark_label)
-                    self.canvas.ax.set_ylabel("Benchmark Equity")
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Benchmark Equity = {y:,.2f}"
+                    sns.lineplot(data=filtered_data['Benchmark'], ax=self.canvas.ax, label=self.benchmark_label)
                 else:
-                    self.canvas.ax.plot(x_data, filtered_data['Total Equity'], label=self.portfolio_label)
-                    self.canvas.ax.plot(x_data, filtered_data['Benchmark'], label=self.benchmark_label)
-                    self.canvas.ax.set_ylabel("Ptf vs Bmk Equity")
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Equity = {y:,.2f}"
-    
+                    sns.lineplot(data=filtered_data[['Total Equity', 'Benchmark']], ax=self.canvas.ax, dashes=False)
+
+                self.canvas.ax.set_ylabel(f"{source} Equity")
+                self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                           f"{source} Equity = {y:,.2f}"
                 self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
                 self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
                 self.canvas.figure.autofmt_xdate()
@@ -107,30 +98,29 @@ class ChartWidget(QtWidgets.QWidget):
                 if source == "Portfolio":
                     y_data = filtered_data['Total Equity']
                     y_data_perf = y_data.pct_change().fillna(0.0)
-                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.portfolio_label)
-                    self.canvas.ax.set_ylabel("Portfolio Performance")
-                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Portfolio Performance = {y:,.2f} %"
+                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
+                                 label=self.portfolio_label)
+
                 elif source == "Benchmark":
                     y_data = filtered_data['Benchmark']
                     y_data_perf = y_data.pct_change().fillna(0.0)
-                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.benchmark_label)
-                    self.canvas.ax.set_ylabel("Benchmark Performance")
-                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Benchmark Performance = {y:,.2f} %"
+                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
+                                 label=self.benchmark_label)
+
                 else:
                     y_data = filtered_data['Total Equity']
                     y_data_perf = y_data.pct_change().fillna(0.0)
-                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.portfolio_label)
+                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
+                                 label=self.portfolio_label)
                     y_data = filtered_data['Benchmark']
                     y_data_perf = y_data.pct_change().fillna(0.0)
-                    self.canvas.ax.plot(x_data, (y_data_perf.add(1).cumprod() - 1) * 100, label=self.benchmark_label)
-                    self.canvas.ax.set_ylabel("Ptf vs Bmk Performance")
-                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Performance = {y:,.2f} %"
+                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
+                                 label=self.benchmark_label)
+
+                self.canvas.ax.set_ylabel(f"{source} Performance")
+                self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
+                self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                           f"{source} Performance = {y:,.2f} %"
 
             elif metric == "Drawdown":
                 if source == "Portfolio":
@@ -182,7 +172,6 @@ class ChartWidget(QtWidgets.QWidget):
 
         if self.returns_series is not None:
             filtered_data = self.returns_series.loc[self.start_date:]
-            x_data = filtered_data.index
 
             if source == "Portfolio":
                 y_data = filtered_data['Total Equity']

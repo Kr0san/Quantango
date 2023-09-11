@@ -104,7 +104,7 @@ class PortfolioWidget(QMainWindow):
         source_options_layout = QHBoxLayout()
         source_label = QLabel("Source:")
         self.source_combo = QComboBox()
-        self.source_combo.addItems(["Portfolio", "Benchmark", "Portfolio vs Benchmark"])
+        self.source_combo.addItems(["Portfolio", "Benchmark", "Ptf vs Bmk"])
         self.source_combo.currentIndexChanged.connect(
             lambda: self.update_plots(start_date=self.first_transaction, source=self.source_combo.currentText(),
                                       rolling_period=self.rolling_spinbox.value()))

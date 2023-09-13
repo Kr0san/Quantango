@@ -86,13 +86,6 @@ class ChartWidget(QtWidgets.QWidget):
                 self.canvas.ax.set_ylabel(f"{source} Equity")
                 self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
                                                            f"{source} Equity = {y:,.2f}"
-                self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-                self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-                self.canvas.figure.autofmt_xdate()
-                for label in self.canvas.ax.get_xticklabels(which='major'):
-                    label.set(rotation=30, horizontalalignment='right', fontsize=7)
-                self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
-                                          bbox_transform=self.canvas.ax.transAxes, ncol=2)
                 
             elif metric == "Performance":
                 if source == "Portfolio":
@@ -100,13 +93,11 @@ class ChartWidget(QtWidgets.QWidget):
                     y_data_perf = y_data.pct_change().fillna(0.0)
                     sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
                                  label=self.portfolio_label)
-
                 elif source == "Benchmark":
                     y_data = filtered_data['Benchmark']
                     y_data_perf = y_data.pct_change().fillna(0.0)
                     sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
                                  label=self.benchmark_label)
-
                 else:
                     y_data = filtered_data['Total Equity']
                     y_data_perf = y_data.pct_change().fillna(0.0)
@@ -128,19 +119,11 @@ class ChartWidget(QtWidgets.QWidget):
                     y_data_perf = y_data.pct_change().fillna(0.0)
                     y_drawdown = qs.stats.to_drawdown_series(y_data_perf)
                     self.canvas.ax.fill_between(x_data, y_drawdown, label=self.portfolio_label, alpha=0.5)
-                    self.canvas.ax.set_ylabel("Portfolio Drawdown")
-                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Portfolio Drawdown = {y:,.2f} %"
                 elif source == "Benchmark":
                     y_data = filtered_data['Benchmark']
                     y_data_perf = y_data.pct_change().fillna(0.0)
                     y_drawdown = qs.stats.to_drawdown_series(y_data_perf)
                     self.canvas.ax.fill_between(x_data, y_drawdown, label=self.benchmark_label, alpha=0.5)
-                    self.canvas.ax.set_ylabel("Benchmark Drawdown")
-                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Benchmark Drawdown = {y:,.2f} %"
                 else:
                     y_data = filtered_data['Total Equity']
                     y_data_perf = y_data.pct_change().fillna(0.0)
@@ -150,10 +133,11 @@ class ChartWidget(QtWidgets.QWidget):
                     y_data_perf = y_data.pct_change().fillna(0.0)
                     y_drawdown = qs.stats.to_drawdown_series(y_data_perf)
                     self.canvas.ax.fill_between(x_data, y_drawdown, label=self.benchmark_label, alpha=0.5)
-                    self.canvas.ax.set_ylabel("Ptf vs Bmk Drawdown")
-                    self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
-                    self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
-                                                               f"Drawdown = {y:,.2f} %"
+
+                self.canvas.ax.set_ylabel(f"{source} Drawdown")
+                self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
+                self.canvas.ax.format_coord = lambda x, y: f"Date = {mdates.num2date(x).strftime('%Y-%m-%d')} " \
+                                                           f"{source} Drawdown = {y:,.2f} %"
 
             self.canvas.ax.yaxis.get_label().set_fontsize(8)
             self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())

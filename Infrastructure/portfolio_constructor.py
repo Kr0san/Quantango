@@ -10,7 +10,6 @@ import yfinance as yf
 import quantstats as qs
 from datetime import datetime as _dt
 from dateutil.relativedelta import relativedelta
-from Infrastructure.Utilities.custom_statistics import omega
 import empyrical as ep
 
 yf.pdr_override()
@@ -20,6 +19,10 @@ pd.set_option('display.width', 400)
 
 class PortfolioConstructor:
     def __init__(self, start_date, start_cash, ptf_name, ptf_curr):
+        """
+        Constructor for the PortfolioConstructor class. This class is responsible for constructing the portfolio and
+        its holdings.
+        """
         self.start_date = pd.to_datetime(start_date, dayfirst=True)
         self.start_cash = float(start_cash)
         self.ptf_name = ptf_name
@@ -37,8 +40,21 @@ class PortfolioConstructor:
         return self.holdings_as_of_date
 
     def construct_positions(self, date, trade_dataframe):
-        # date = pd.to_datetime(date, dayfirst=True)
-        # ph = PositionHandler()
+        """
+        Method to construct the positions as of a given date.
+
+        Parameters
+        ----------
+        date : `pd.Timestamp`
+            Date as of which the holdings are to be constructed.
+        trade_dataframe : `pd.DataFrame`
+            Dataframe containing the trades.
+
+        Returns
+        -------
+        `list`
+            List of lists containing the holdings information.
+        """
         position_info = []
         for transaction in self.construct_transactions(trade_dataframe):
             if not is_business_day(transaction.dt):
@@ -61,6 +77,17 @@ class PortfolioConstructor:
         return position_info
 
     def construct_portfolio_history(self, trades, end_date):
+        """
+        Method to construct the portfolio history from the trades. This method is used to construct the portfolio
+        holdings as of a given date. Updates the holdings_as_of_date attribute.
+
+        Parameters
+        ----------
+        trades : `pd.DataFrame`
+            Dataframe containing the trades.
+        end_date : `pd.Timestamp`
+            End date of the portfolio history.
+        """
         data_handler = PriceDataSource(trades, end_date)
         date_index = pd.date_range(self.start_date, end_date, freq=BDay())
         position_info = {'Symbol': [], 'Quantity': [], 'Market Price': [], 'Market Value': [], 'Avg Price': [],
@@ -142,7 +169,6 @@ class PortfolioConstructor:
         bmk_name_map = {'S&P 500': '^GSPC', 'NASDAQ': '^IXIC', 'Dow Jones': '^DJI', 'Russell 2000': '^RUT',
                         'Nikkei 225': '^N225', 'Hang Seng': '^HSI', 'Euro Stoxx 50': '^STOXX50E'}
         data = pdr.get_data_yahoo(bmk_name_map[benchmark], start=self.start_date, end=end_date + BDay(1))
-        # data['Bmk Returns'] = data['Close'].pct_change().fillna(0.0)
         data.rename(columns={'Adj Close': 'Benchmark'}, inplace=True)
 
         return data['Benchmark']
@@ -172,7 +198,23 @@ class PortfolioConstructor:
 
     @staticmethod
     def construct_statistics(portfolio_returns, benchmark_returns, metrics="returns"):
+        """
+        Helper method to construct the statistics dataframe.
 
+        Parameters
+        ----------
+        portfolio_returns : `pd.DataFrame`
+            Dataframe containing portfolio returns.
+        benchmark_returns : `pd.DataFrame`
+            Dataframe containing benchmark returns.
+        metrics : `str`
+            Type of metrics to be calculated. Passed from the main window dropdown.
+
+        Returns
+        -------
+        `pd.DataFrame`
+            Dataframe object containing the statistics.
+        """
         def returns_statistics(returns):
 
             today = returns.index[-1]
@@ -185,12 +227,12 @@ class PortfolioConstructor:
                      str(np.round(qs.stats.expected_return(returns) * 100, 2)) + ' %',
                      str(np.round(qs.stats.expected_return(returns, aggregate="M") * 100, 2)) + ' %',
                      str(np.round(qs.stats.expected_return(returns, aggregate="A") * 100, 2)) + ' %',
-                     str(np.round(qs.stats.comp(returns[returns.index >= _dt(today.year, today.month, 1)]) * 100
-                                  , 2))+' %',
+                     str(np.round(qs.stats.comp(returns[returns.index >= _dt(today.year, today.month, 1)]) * 100,
+                                  2))+' %',
                      str(np.round(qs.stats.comp(returns[returns.index >= delta_3m]) * 100, 2)) + ' %',
                      str(np.round(qs.stats.comp(returns[returns.index >= delta_6m]) * 100, 2)) + ' %',
-                     str(np.round(qs.stats.comp(returns[returns.index >= _dt(today.year, 1, 1)]) * 100
-                                  , 2)) + ' %',
+                     str(np.round(qs.stats.comp(returns[returns.index >= _dt(today.year, 1, 1)]) * 100,
+                                  2)) + ' %',
                      str(np.round(qs.stats.comp(returns[returns.index >= delta_1y]) * 100, 2)) + ' %']
 
             return stats
@@ -199,8 +241,8 @@ class PortfolioConstructor:
 
             stats = [np.round(qs.stats.sharpe(returns, rf=risk_free_rate), 2),
                      np.round(qs.stats.sortino(returns, rf=risk_free_rate), 2),
-                     np.round(ep.stats.omega_ratio(returns, risk_free=risk_free_rate, required_return=required_return)
-                              , 2),
+                     np.round(ep.stats.omega_ratio(returns, risk_free=risk_free_rate, required_return=required_return),
+                              2),
                      str(np.round(qs.stats.kelly_criterion(returns) * 100, 2)) + ' %',
                      np.round(qs.stats.payoff_ratio(returns), 2),
                      np.round(qs.stats.calmar(returns), 2),
@@ -273,7 +315,21 @@ class PortfolioConstructor:
 
     @staticmethod
     def construct_additional_statistics(portfolio_returns, benchmark_returns):
-        # ptf_returns = self.portfolio_timeseries['Total Equity'].pct_change().fillna(0.0)
+        """
+        Helper method to construct additional statistics dataframe.
+
+        Parameters
+        ----------
+        portfolio_returns : `pd.Series`
+            Dataframe containing portfolio returns.
+        benchmark_returns : `pd.Series`
+            Dataframe containing benchmark returns.
+
+        Returns
+        -------
+        `pd.DataFrame`
+            Dataframe object containing additional statistics.
+        """
         alpha, beta = ep.alpha_beta(portfolio_returns, benchmark_returns)
         information_ratio = qs.stats.information_ratio(portfolio_returns, benchmark_returns)
         treynor_ratio = qs.stats.treynor_ratio(portfolio_returns, benchmark_returns)
@@ -294,6 +350,19 @@ class PortfolioConstructor:
 
     @staticmethod
     def construct_transactions(trade_dataframe):
+        """
+        Helper method to construct the transactions from the trades dataframe.
+
+        Parameters
+        ----------
+        trade_dataframe : `pd.DataFrame`
+            Dataframe containing the trades.
+
+        Returns
+        -------
+        `list`
+            List of Transaction objects.
+        """
         trades = trade_dataframe
         trades.sort_values(['Date'], inplace=True)
 
@@ -304,5 +373,20 @@ class PortfolioConstructor:
 
     @staticmethod
     def get_current_price(ticker, date):
+        """
+        Helper method to get the current price of a ticker.
+
+        Parameters
+        ----------
+        ticker : `str`
+            Ticker symbol.
+        date : `pd.Timestamp`
+            Date as of which the price is to be fetched.
+
+        Returns
+        -------
+        `float`
+            Current price of the ticker.
+        """
         data = pdr.get_data_yahoo(ticker, start=date - BDay(1), end=date)
         return data.iloc[0]['Adj Close']

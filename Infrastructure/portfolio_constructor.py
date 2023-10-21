@@ -1,16 +1,15 @@
 import numpy as np
-
+import pandas as pd
+import yfinance as yf
+import quantstats as qs
+import empyrical as ep
 from Infrastructure.Portfolio.portfolio import Portfolio
 from Infrastructure.Portfolio.transaction import Transaction
 from Infrastructure.Utilities.business_day_check import is_business_day, BDay
 from pandas_datareader import data as pdr
 from Infrastructure.Utilities.data_sourcer import PriceDataSource
-import pandas as pd
-import yfinance as yf
-import quantstats as qs
 from datetime import datetime as _dt
 from dateutil.relativedelta import relativedelta
-import empyrical as ep
 
 yf.pdr_override()
 pd.set_option('display.max_columns', 20)

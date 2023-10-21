@@ -303,7 +303,7 @@ class PortfolioWidget(QMainWindow):
                 # Construct returns series to be used for various metrics and plotting
                 self.returns_series = constructor.construct_returns_dataframe(benchmark, as_of_date)
 
-                self.pos_model.dataframe = constructor.holdings_as_of_date
+                self.pos_model.dataframe = constructor.holdings
                 self.prop_dataframe.loc[0, "Balance"] = constructor.portfolio.cash
                 self.prop_dataframe.loc[0, "Total MV"] = constructor.portfolio.total_market_value
                 self.prop_dataframe.loc[0, "Total Equity"] = constructor.portfolio.total_equity

@@ -21,16 +21,12 @@ plt.rcParams['figure.facecolor'] = '#202124'  # #e4e7eb #202124 8ab4f7 161719
 class NavigationToolbar(QtWidgets.QWidget):
     def __init__(self, canvas, parent=None):
         super(NavigationToolbar, self).__init__(parent)
-
         self.canvas = canvas
-
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
         self.toolbar.setStyleSheet("background-color: transparent;")
-
         layout.addWidget(self.toolbar)
         self.setLayout(layout)
 
@@ -41,9 +37,6 @@ class MplCanvas(FigureCanvasQTAgg):
         self.ax = fig.add_subplot(111)
         self.ax.xaxis.grid(linestyle=':')
         self.ax.yaxis.grid(linestyle=':')
-        # self.ax.tick_params(reset=True)
-        # self.ax.xaxis.set_tick_params(which='major', length=10)
-        # self.ax.tick_params(which='major', length=7)
         super(MplCanvas, self).__init__(fig)
 
 
@@ -73,6 +66,8 @@ class ChartWidget(QtWidgets.QWidget):
 
         if self.returns_series is not None:
             filtered_data = self.returns_series.loc[self.start_date:]
+            ptf_ret = filtered_data['Total Equity'].pct_change().fillna(0.0)
+            bmk_ret = filtered_data['Benchmark'].pct_change().fillna(0.0)
             x_data = filtered_data.index
 
             if metric == "Equity":
@@ -89,24 +84,16 @@ class ChartWidget(QtWidgets.QWidget):
                 
             elif metric == "Performance":
                 if source == "Portfolio":
-                    y_data = filtered_data['Total Equity']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
-                                 label=self.portfolio_label)
+                    sns.lineplot(data=(ptf_ret.add(1).cumprod() - 1) * 100,
+                                 ax=self.canvas.ax, label=self.portfolio_label)
                 elif source == "Benchmark":
-                    y_data = filtered_data['Benchmark']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
-                                 label=self.benchmark_label)
+                    sns.lineplot(data=(bmk_ret.add(1).cumprod() - 1) * 100,
+                                 ax=self.canvas.ax, label=self.benchmark_label)
                 else:
-                    y_data = filtered_data['Total Equity']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
-                                 label=self.portfolio_label)
-                    y_data = filtered_data['Benchmark']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    sns.lineplot((y_data_perf.add(1).cumprod() - 1) * 100, ax=self.canvas.ax,
-                                 label=self.benchmark_label)
+                    sns.lineplot(data=(ptf_ret.add(1).cumprod() - 1) * 100,
+                                 ax=self.canvas.ax, label=self.portfolio_label)
+                    sns.lineplot(data=(bmk_ret.add(1).cumprod() - 1) * 100,
+                                 ax=self.canvas.ax, label=self.benchmark_label)
 
                 self.canvas.ax.set_ylabel(f"{source} Performance")
                 self.canvas.ax.yaxis.set_major_formatter(PercentFormatter())
@@ -115,23 +102,15 @@ class ChartWidget(QtWidgets.QWidget):
 
             elif metric == "Drawdown":
                 if source == "Portfolio":
-                    y_data = filtered_data['Total Equity']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    y_drawdown = qs.stats.to_drawdown_series(y_data_perf)
+                    y_drawdown = qs.stats.to_drawdown_series(ptf_ret)
                     self.canvas.ax.fill_between(x_data, y_drawdown, label=self.portfolio_label, alpha=0.5)
                 elif source == "Benchmark":
-                    y_data = filtered_data['Benchmark']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    y_drawdown = qs.stats.to_drawdown_series(y_data_perf)
+                    y_drawdown = qs.stats.to_drawdown_series(bmk_ret)
                     self.canvas.ax.fill_between(x_data, y_drawdown, label=self.benchmark_label, alpha=0.5)
                 else:
-                    y_data = filtered_data['Total Equity']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    y_drawdown = qs.stats.to_drawdown_series(y_data_perf)
+                    y_drawdown = qs.stats.to_drawdown_series(ptf_ret)
                     self.canvas.ax.fill_between(x_data, y_drawdown, label=self.portfolio_label, alpha=0.5)
-                    y_data = filtered_data['Benchmark']
-                    y_data_perf = y_data.pct_change().fillna(0.0)
-                    y_drawdown = qs.stats.to_drawdown_series(y_data_perf)
+                    y_drawdown = qs.stats.to_drawdown_series(bmk_ret)
                     self.canvas.ax.fill_between(x_data, y_drawdown, label=self.benchmark_label, alpha=0.5)
 
                 self.canvas.ax.set_ylabel(f"{source} Drawdown")
@@ -143,8 +122,8 @@ class ChartWidget(QtWidgets.QWidget):
             self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
             self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
             self.canvas.figure.autofmt_xdate()
-            for label in self.canvas.ax.get_xticklabels(which='major'):
-                label.set(rotation=30, horizontalalignment='right', fontsize=7)
+            self.canvas.ax.tick_params(axis='x', rotation=30, labelsize=7, which='major')
+            self.canvas.ax.set_xlabel(None)
             self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
                                   bbox_transform=self.canvas.ax.transAxes, ncol=2)
 
@@ -156,24 +135,18 @@ class ChartWidget(QtWidgets.QWidget):
 
         if self.returns_series is not None:
             filtered_data = self.returns_series.loc[self.start_date:]
+            ptf_ret = filtered_data['Total Equity'].pct_change().fillna(0.0)
+            bmk_ret = filtered_data['Benchmark'].pct_change().fillna(0.0)
 
             if source == "Portfolio":
-                y_data = filtered_data['Total Equity']
-                y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.histplot(y_data_perf, kde=True, ax=self.canvas.ax, label=self.portfolio_label)
+                sns.histplot(ptf_ret, kde=True, ax=self.canvas.ax, label=self.portfolio_label)
 
             elif source == "Benchmark":
-                y_data = filtered_data['Benchmark']
-                y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.histplot(y_data_perf, ax=self.canvas.ax, kde=True, label=self.benchmark_label)
+                sns.histplot(bmk_ret, kde=True, ax=self.canvas.ax, label=self.benchmark_label)
 
             else:
-                y_data = filtered_data['Total Equity']
-                y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.kdeplot(y_data_perf, fill=True, ax=self.canvas.ax, label=self.portfolio_label)
-                y_data = filtered_data['Benchmark']
-                y_data_perf = y_data.pct_change().fillna(0.0)
-                sns.kdeplot(y_data_perf, fill=True,  ax=self.canvas.ax, label=self.benchmark_label)
+                sns.kdeplot(ptf_ret, fill=True, ax=self.canvas.ax, label=self.portfolio_label)
+                sns.kdeplot(bmk_ret, fill=True, ax=self.canvas.ax, label=self.benchmark_label)
 
             self.canvas.ax.set_ylabel(f"{source} Ret. Density")
             self.canvas.ax.yaxis.get_label().set_fontsize(8)
@@ -188,24 +161,24 @@ class ChartWidget(QtWidgets.QWidget):
         if self.returns_series is not None:
             if source == "Portfolio":
                 monthly_returns = qs.stats.monthly_returns(self.returns_series['Ptf Returns']) * 100
-                sns.heatmap(monthly_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
+                sns.heatmap(data=monthly_returns, annot=True, fmt="0.2f", linewidth=.5, ax=self.canvas.ax,
                             cbar=False, annot_kws={"size": 8}, center=0, cmap=cm.get_cmap("RdYlGn"))
 
             elif source == "Benchmark":
                 monthly_returns = qs.stats.monthly_returns(self.returns_series['Bmk Returns']) * 100
-                sns.heatmap(monthly_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
+                sns.heatmap(data=monthly_returns, annot=True, fmt="0.2f", linewidth=.5, ax=self.canvas.ax,
                             cbar=False, annot_kws={"size": 8}, center=0, cmap=cm.get_cmap("RdYlGn"))
 
             else:
                 active_returns = qs.stats.monthly_returns(self.returns_series['Ptf Returns']) - \
                                  qs.stats.monthly_returns(self.returns_series['Bmk Returns']) * 100
-                sns.heatmap(active_returns, annot=True, fmt="0.2f", linewidths=.5, ax=self.canvas.ax,
+                sns.heatmap(data=active_returns, annot=True, fmt="0.2f", linewidth=.5, ax=self.canvas.ax,
                             cbar=False, annot_kws={"size": 8}, center=0, cmap=cm.get_cmap("RdYlGn"))
 
             self.canvas.ax.set_title(f'Monthly {source} Returns (%)', fontweight='bold')
-            self.canvas.ax.set_ylabel('')
+            self.canvas.ax.set_ylabel(None)
             self.canvas.ax.set_yticklabels(self.canvas.ax.get_yticklabels(), rotation=0)
-            self.canvas.ax.set_xlabel('')
+            self.canvas.ax.set_xlabel(None)
             self.canvas.draw()
 
     def plot_rolling_volatility(self, source="Portfolio", rolling_period=63):
@@ -235,6 +208,8 @@ class ChartWidget(QtWidgets.QWidget):
             self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
             self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
             self.canvas.figure.autofmt_xdate()
+            self.canvas.ax.tick_params(axis='x', rotation=30, labelsize=7, which='major')
+            self.canvas.ax.set_xlabel(None)
             self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
                                   bbox_transform=self.canvas.ax.transAxes, ncol=2)
             self.canvas.draw()
@@ -252,6 +227,8 @@ class ChartWidget(QtWidgets.QWidget):
             self.canvas.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
             self.canvas.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
             self.canvas.figure.autofmt_xdate()
+            self.canvas.ax.tick_params(axis='x', rotation=30, labelsize=7, which='major')
+            self.canvas.ax.set_xlabel(None)
             self.canvas.ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15),
                                   bbox_transform=self.canvas.ax.transAxes, ncol=2)
             self.canvas.draw()

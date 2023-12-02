@@ -45,7 +45,7 @@ class PandasModel(QAbstractTableModel):
 
                 if isinstance(value, datetime):
                     # Render time to YYYY-MM-DD.
-                    return value.strftime("%Y-%m-%d")
+                    return value.strftime("%Y-%m-%d %H:%M:%S")
 
                 if isinstance(value, float):
                     # Render float to 2 dp and a thousand separator
@@ -108,7 +108,7 @@ class PandasModel(QAbstractTableModel):
                 else:
                     raise ValueError("Input must be a list")
                 new_df = pd.DataFrame(dict(zip(list(self._data.columns), new_row)))
-                self._data = pd.concat([self._data, new_df])
+                self._data = pd.concat([self._data if not self._data.empty else None, new_df])
             self._data = self._data.reset_index(drop=True)
             self.endInsertRows()
             return True

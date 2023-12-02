@@ -34,7 +34,7 @@ class NewTrade(QDialog):
         date_label = QLabel("Start Date:")
         date_selection = datetime.datetime.today() - BDay(1)
         self.date_edit = QDateTimeEdit(date_selection, calendarPopup=True)
-        self.date_edit.setDisplayFormat('yyyy-MM-dd')
+        self.date_edit.setDisplayFormat('yyyy-MM-dd HH:mm:ss')
 
         commission_label = QLabel("Commission")
         self.commission_edit = QLineEdit("2")
@@ -141,7 +141,7 @@ class NewTrade(QDialog):
         `str`
             Date
         """
-        return pd.to_datetime(self.date_edit.text(), format='%Y-%m-%d', dayfirst=True)
+        return pd.to_datetime(self.date_edit.text(), format='%Y-%m-%d %H:%M:%S', dayfirst=True)
 
     @property
     def get_commission(self):

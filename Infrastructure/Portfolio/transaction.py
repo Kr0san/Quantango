@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytz
 
 
 class Transaction:
@@ -35,10 +36,10 @@ class Transaction:
         self.asset = asset
         self.quantity = quantity
         self.direction = np.copysign(1, self.quantity)
-        if isinstance(dt, str):
-            self.dt = pd.to_datetime(dt, dayfirst=True)
-        else:
-            self.dt = dt
+        # if isinstance(dt, str):
+        #     self.dt = pd.Timestamp(dt, tz=pytz.UTC)  # pd.to_datetime(dt, dayfirst=True)
+        # else:
+        self.dt = dt
         self.price = price
         self.order_id = order_id
         self.commission = commission

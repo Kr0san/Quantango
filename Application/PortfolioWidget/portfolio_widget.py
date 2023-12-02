@@ -274,7 +274,7 @@ class PortfolioWidget(QMainWindow):
         """
         self.trans_table = QTableView()
         self.trans_table.verticalHeader().setVisible(False)
-        self.trans_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.trans_table.horizontalHeader().setStretchLastSection(True)
         self.trans_model = PandasModel(self.trans_dataframe)
         self.trans_table.setModel(self.trans_model)
         self.trans_table.setSortingEnabled(True)
@@ -297,6 +297,7 @@ class PortfolioWidget(QMainWindow):
         else:
             try:
                 self.first_transaction = trades['Date'].min() - BDay(1)
+                self.first_transaction = pd.to_datetime(self.first_transaction.date())
                 constructor = PortfolioConstructor(self.first_transaction, self.ptf_cash, self.ptf_name, self.ptf_curr)
                 constructor.construct_portfolio_history(trades, as_of_date)
 
@@ -386,7 +387,10 @@ class PortfolioWidget(QMainWindow):
         """
         df = pd.read_csv(file)
         if all(header in df.columns for header in self.trans_headers):
-            df["Date"] = pd.to_datetime(df["Date"], format='%Y-%m-%d', dayfirst=True)
+            try:
+                df["Date"] = pd.to_datetime(df["Date"], format="%Y-%m-%d %H:%M:%S", dayfirst=True)
+            except ValueError:
+                df["Date"] = pd.to_datetime(df["Date"], format="%Y-%m-%d", dayfirst=True)
             self.trans_model.dataframe = df
         else:
             QMessageBox.information(self, "Error!", "Imported file headers do not match transaction table headers!")

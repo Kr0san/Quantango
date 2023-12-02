@@ -15,6 +15,7 @@ class PriceDataSource:
         tickers = self.trade_dataframe["Symbol"].unique()
         tickers = [ticker for ticker in tickers.tolist() if ticker not in ('SUBSCRIPTION', 'WITHDRAWAL')]
         start_date = self.trade_dataframe["Date"].min()
+        start_date = start_date.strftime("%Y-%m-%d")
         prices = yf.download(tickers, start=start_date, end=self.as_of_date + BDay(1))
 
         if adjusted:

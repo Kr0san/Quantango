@@ -5,7 +5,7 @@ import quantstats as qs
 import empyrical as ep
 from Infrastructure.Portfolio.portfolio import Portfolio
 from Infrastructure.Portfolio.transaction import Transaction
-from Infrastructure.Utilities.business_day_check import is_business_day, BDay
+from Infrastructure.Utilities.business_day_check import BDay
 from pandas_datareader import data as pdr
 from Infrastructure.Utilities.data_sourcer import PriceDataSource
 from datetime import datetime as _dt
@@ -38,43 +38,6 @@ class PortfolioConstructor:
     def holdings(self):
         return self.holdings_as_of_date
 
-    def construct_positions(self, date, trade_dataframe):
-        """
-        Method to construct the positions as of a given date.
-
-        Parameters
-        ----------
-        date : `pd.Timestamp`
-            Date as of which the holdings are to be constructed.
-        trade_dataframe : `pd.DataFrame`
-            Dataframe containing the trades.
-
-        Returns
-        -------
-        `list`
-            List of lists containing the holdings information.
-        """
-        position_info = []
-        for transaction in self.construct_transactions(trade_dataframe):
-            if not is_business_day(transaction.dt):
-                raise ValueError(f"Transaction {transaction} must be on a business day!")
-            if transaction.dt <= date:
-                if transaction.asset == "SUBSCRIPTION":
-                    self.portfolio.subscribe_funds(transaction.dt, transaction.quantity)
-                elif transaction.asset == "WITHDRAWAL":
-                    self.portfolio.withdraw_funds(transaction.dt, transaction.quantity)
-                else:
-                    self.portfolio.transact_asset(transaction)
-
-        for asset in self.portfolio.pos_handler.positions.keys():
-            price = self.get_current_price(asset, date)
-            position = self.portfolio.pos_handler.positions[asset]
-            position.update_current_price(price, date)
-            position_info.append([position.asset, position.net_quantity, position.market_price, position.market_value,
-                                  position.avg_price, position.net_incl_commission, position.unrealised_pnl,
-                                  position.realised_pnl, position.total_pnl, position.current_dt])
-        return position_info
-
     def construct_portfolio_history(self, trades, end_date):
         """
         Method to construct the portfolio history from the trades. This method is used to construct the portfolio
@@ -95,15 +58,8 @@ class PortfolioConstructor:
         portfolio_timeseries = {'Date': [], 'Total Equity': [], 'Total Market Value': [], 'Total RPL': [],
                                 'Total UPL': [], 'Total PNL': []}
 
+        transactions = self.construct_transactions(trades)
         for date in date_index:
-            for transaction in self.construct_transactions(trades):
-                if date == transaction.dt:
-                    if transaction.asset == "SUBSCRIPTION":
-                        self.portfolio.subscribe_funds(transaction.dt, transaction.quantity)
-                    elif transaction.asset == "WITHDRAWAL":
-                        self.portfolio.withdraw_funds(transaction.dt, transaction.quantity)
-                    else:
-                        self.portfolio.transact_asset(transaction)
             for asset in self.portfolio.pos_handler.positions.keys():
                 try:
                     price = data_handler.get_price_from_history(asset, date)
@@ -121,6 +77,15 @@ class PortfolioConstructor:
                     position_info["Holding Date"].append(position.current_dt)
                 except KeyError:
                     pass
+
+            for transaction in transactions:
+                if date <= transaction.dt <= date + pd.Timedelta(hours=23, minutes=59, seconds=59):
+                    if transaction.asset == "SUBSCRIPTION":
+                        self.portfolio.subscribe_funds(transaction.dt, transaction.quantity)
+                    elif transaction.asset == "WITHDRAWAL":
+                        self.portfolio.withdraw_funds(transaction.dt, transaction.quantity)
+                    else:
+                        self.portfolio.transact_asset(transaction)
 
             portfolio_timeseries['Date'].append(date)
             portfolio_timeseries['Total Equity'].append(self.portfolio.total_equity)
@@ -190,7 +155,7 @@ class PortfolioConstructor:
         """
         ptf_returns = self.construct_portfolio_returns()
         bmk_returns = self.construct_benchmark_returns(benchmark, end_date)
-        returns_df = ptf_returns.join(bmk_returns).fillna(method='ffill')
+        returns_df = ptf_returns.join(bmk_returns).ffill()
         returns_df['Bmk Returns'] = returns_df['Benchmark'].pct_change().fillna(0.0)
 
         return returns_df
@@ -389,3 +354,40 @@ class PortfolioConstructor:
         """
         data = pdr.get_data_yahoo(ticker, start=date - BDay(1), end=date)
         return data.iloc[0]['Adj Close']
+
+#     def construct_positions(self, date, trade_dataframe):
+#     """
+#     Method to construct the positions as of a given date.
+#
+#     Parameters
+#     ----------
+#     date : `pd.Timestamp`
+#         Date as of which the holdings are to be constructed.
+#     trade_dataframe : `pd.DataFrame`
+#         Dataframe containing the trades.
+#
+#     Returns
+#     -------
+#     `list`
+#         List of lists containing the holdings information.
+#     """
+#     position_info = []
+#     for transaction in self.construct_transactions(trade_dataframe):
+#         if not is_business_day(transaction.dt):
+#             raise ValueError(f"Transaction {transaction} must be on a business day!")
+#         if transaction.dt <= date:
+#             if transaction.asset == "SUBSCRIPTION":
+#                 self.portfolio.subscribe_funds(transaction.dt, transaction.quantity)
+#             elif transaction.asset == "WITHDRAWAL":
+#                 self.portfolio.withdraw_funds(transaction.dt, transaction.quantity)
+#             else:
+#                 self.portfolio.transact_asset(transaction)
+#
+#     for asset in self.portfolio.pos_handler.positions.keys():
+#         price = self.get_current_price(asset, date)
+#         position = self.portfolio.pos_handler.positions[asset]
+#         position.update_current_price(price, date)
+#         position_info.append([position.asset, position.net_quantity, position.market_price, position.market_value,
+#                               position.avg_price, position.net_incl_commission, position.unrealised_pnl,
+#                               position.realised_pnl, position.total_pnl, position.current_dt])
+#     return position_info
